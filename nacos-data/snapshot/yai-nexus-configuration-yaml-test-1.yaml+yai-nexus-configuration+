@@ -1,0 +1,7 @@
+server:
+  host: "yaml-server.example.com"
+  port: 8080
+retries:
+  - 100
+  - 200
+  - 500
