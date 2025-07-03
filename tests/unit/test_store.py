@@ -8,6 +8,7 @@ YAI Nexus Configuration - 单元测试 - 配置存储
 """
 
 import pytest
+import threading
 
 from yai_nexus_configuration.internal.store import ConfigStore
 from yai_nexus_configuration.exceptions import ConfigNotRegisteredError
@@ -111,4 +112,54 @@ def test_clear_store(store: ConfigStore):
 
     store.clear()
     assert store.get_config_count() == 0
-    assert store.get_all_configs() == {} 
+    assert store.get_all_configs() == {}
+
+
+def test_concurrent_access_to_store():
+    """测试 ConfigStore 在多线程环境下的线程安全。"""
+    store = ConfigStore()
+    
+    class ConfigA(NexusConfig):
+        val: int
+    
+    class ConfigB(NexusConfig):
+        val: int
+
+    num_threads = 10
+    iterations = 100
+    
+    def worker(config_class, start_val):
+        for i in range(iterations):
+            instance = config_class(val=start_val + i)
+            store.set_config(instance)
+            retrieved = store.get_config(config_class)
+            assert retrieved.val >= start_val
+
+    threads = []
+    for i in range(num_threads):
+        # 交替读写不同的配置类
+        config_class = ConfigA if i % 2 == 0 else ConfigB
+        thread = threading.Thread(target=worker, args=(config_class, i * iterations))
+        threads.append(thread)
+        thread.start()
+
+    for thread in threads:
+        thread.join()
+
+    # 验证最终状态
+    assert store.get_config_count() == 2
+    final_a = store.get_config(ConfigA)
+    final_b = store.get_config(ConfigB)
+    assert isinstance(final_a, ConfigA)
+    assert isinstance(final_b, ConfigB)
+
+
+def test_set_config_with_invalid_type():
+    """测试当 set_config 接收到非 NexusConfig 对象时会失败。"""
+    store = ConfigStore()
+    
+    class NotAConfig:
+        pass
+    
+    with pytest.raises(TypeError, match="只能存储 NexusConfig 的子类实例"):
+        store.set_config(NotAConfig()) 

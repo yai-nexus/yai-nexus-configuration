@@ -55,6 +55,7 @@ class NexusConfigManager:
         self._store = ConfigStore()
         self._registered_configs: Dict[Type, Dict[str, str]] = {}
         self._lock = threading.RLock()
+        self._closed = False
         
         # 连接到配置源
         self._provider.connect()
@@ -159,8 +160,6 @@ class NexusConfigManager:
 
         # 严格根据文件扩展名选择解析器
         if lowered_data_id.endswith(('.yaml', '.yml')):
-            if not HAS_YAML:
-                raise ConfigValidationError(data_id, "YAML 解析需要 PyYAML，请安装")
             try:
                 data = yaml.safe_load(content)
             except yaml.YAMLError as e:
@@ -329,21 +328,28 @@ class NexusConfigManager:
     
     def close(self) -> None:
         """
-        关闭管理器，断开连接并清理资源
+        关闭管理器，断开连接并清理资源。此操作是幂等的。
         """
         with self._lock:
+            # 如果已经关闭，则不执行任何操作
+            if self._closed:
+                logger.info("管理器已关闭，无需重复操作")
+                return
+
             # 停止所有监听器
-            for config_class, metadata in self._registered_configs.items():
+            for config_class, metadata in list(self._registered_configs.items()):
                 self._provider.unwatch_config(metadata['data_id'], metadata['group'])
             
             # 断开提供者连接
-            self._provider.disconnect()
+            if self._provider.is_connected():
+                self._provider.disconnect()
             
-            # 清空存储
+            # 清空存储并标记为已关闭
             self._store.clear()
             self._registered_configs.clear()
+            self._closed = True
             
-            logger.info("管理器已关闭")
+            logger.info("管理器已成功关闭")
     
     def _start_watching(self, config_class: Type, data_id: str, group: str) -> None:
         """开始监听配置变更"""

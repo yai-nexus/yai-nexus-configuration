@@ -12,6 +12,7 @@ import logging
 from typing import Type, TypeVar, Dict, Optional, Any
 from pydantic import BaseModel
 
+from ..config import NexusConfig
 from ..exceptions import ConfigNotRegisteredError
 
 
@@ -37,6 +38,9 @@ class ConfigStore:
         Args:
             config_instance: 要存储的配置实例
         """
+        if not isinstance(config_instance, NexusConfig):
+            raise TypeError(f"只能存储 NexusConfig 的子类实例，但传入的是 {type(config_instance).__name__}")
+            
         config_class = type(config_instance)
         
         with self._lock:

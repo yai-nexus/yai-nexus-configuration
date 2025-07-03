@@ -154,7 +154,7 @@ class FileProvider(AbstractProvider):
                 )
             
             # 验证文件格式
-            self._validate_config_content(content, file_path)
+            # self._validate_config_content(content, file_path)
             
             logger.debug(f"成功读取配置文件: {file_path}")
             return content
@@ -221,41 +221,6 @@ class FileProvider(AbstractProvider):
             data_id = f"{data_id}.{self.default_format}"
         
         return self.base_path / group / data_id
-    
-    def _validate_config_content(self, content: str, file_path: Path) -> None:
-        """
-        验证配置文件内容格式
-        
-        Args:
-            content: 文件内容
-            file_path: 文件路径
-            
-        Raises:
-            ConfigSourceError: 格式验证失败时抛出
-        """
-        file_ext = file_path.suffix.lower()
-        
-        try:
-            if file_ext == '.json':
-                json.loads(content)
-            elif file_ext in ['.yaml', '.yml']:
-                if not HAS_YAML:
-                    raise ImportError("需要安装 PyYAML 来处理 YAML 文件")
-                yaml.safe_load(content)
-            else:
-                # 对于其他扩展名，尝试按默认格式解析
-                if self.default_format == 'json':
-                    json.loads(content)
-                elif self.default_format == 'yaml':
-                    if not HAS_YAML:
-                        raise ImportError("需要安装 PyYAML 来处理 YAML 文件")
-                    yaml.safe_load(content)
-                    
-        except (json.JSONDecodeError, yaml.YAMLError) as e:
-            raise ConfigSourceError(
-                file_path.name, file_path.parent.name, "validate_config",
-                f"配置文件格式错误: {str(e)}"
-            )
     
     def _start_file_watching(self) -> None:
         """启动文件变更监听线程"""

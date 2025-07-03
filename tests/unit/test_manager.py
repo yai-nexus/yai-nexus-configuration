@@ -16,6 +16,7 @@ from yai_nexus_configuration import (
     nexus_config,
     ConfigNotRegisteredError,
     MissingConfigMetadataError,
+    ConfigValidationError,
 )
 from yai_nexus_configuration.internal.providers import AbstractProvider
 
@@ -213,4 +214,88 @@ def test_config_change_callback_updates_store(manager: NexusConfigManager, mock_
     # 验证存储中的配置实例是否已自动更新
     updated_config = manager.get_config(DecoratedConfig)
     assert updated_config.host == "updated.db"
-    assert updated_config.port == 5678 
+    assert updated_config.port == 5678
+
+
+def test_register_with_invalid_json_content(mock_provider):
+    """测试当配置文件内容为非法 JSON 时，register 方法会失败。"""
+    
+    @nexus_config(data_id="invalid.json", group="test")
+    class InvalidJsonConfig(NexusConfig):
+        key: str
+
+    # 模拟 provider 返回非法的 JSON 字符串
+    mock_provider.get_config.return_value = "{'key': 'invalid json'}" # 使用单引号
+    
+    manager = NexusConfigManager(mock_provider)
+    
+    with pytest.raises(ConfigValidationError, match="JSON 解析失败"):
+        manager.register(InvalidJsonConfig)
+
+
+def test_register_with_invalid_yaml_content(mock_provider):
+    """
+    测试当 YAML 内容解析后不是字典时，register 方法会失败。
+    PyYAML 对于某些格式错误（如缩进）不会抛出 YAMLError，而是会解析成非字典类型。
+    """
+
+    @nexus_config(data_id="invalid.yml", group="test")
+    class InvalidYamlConfig(NexusConfig):
+        key: str
+
+    # 这个字符串会被 PyYAML 解析为一个列表，而不是字典
+    mock_provider.get_config.return_value = "- item1\n- item2"
+    
+    manager = NexusConfigManager(mock_provider)
+    
+    with pytest.raises(ConfigValidationError, match="配置内容必须是字典/映射格式"):
+        manager.register(InvalidYamlConfig)
+
+
+def test_register_with_non_dict_content(mock_provider):
+    """测试当配置文件内容解析后不是字典时，register 方法会失败。"""
+    
+    @nexus_config(data_id="list.json", group="test")
+    class ListConfig(NexusConfig):
+        key: str
+        
+    # 模拟 provider 返回一个 JSON 数组，而不是对象
+    mock_provider.get_config.return_value = "[1, 2, 3]"
+    
+    manager = NexusConfigManager(mock_provider)
+    
+    with pytest.raises(ConfigValidationError, match="配置内容必须是字典/映射格式"):
+        manager.register(ListConfig)
+
+
+def test_close_manager(mock_provider):
+    """测试 close 方法能正确关闭 manager，并清理所有资源。"""
+    
+    @nexus_config(data_id="config.json", group="test")
+    class SomeConfig(NexusConfig):
+        key: str
+        
+    # 为 get_config 设置一个符合 SomeConfig 结构的返回值
+    mock_provider.get_config.return_value = '{"key": "some_value"}'
+        
+    manager = NexusConfigManager(mock_provider)
+    manager.register(SomeConfig)
+    
+    # 在 close 之前，确认状态
+    assert len(manager._registered_configs) == 1
+    assert manager._store.get_config_count() == 1
+    mock_provider.connect.assert_called_once()
+    mock_provider.watch_config.assert_called_once()
+    
+    # 调用 close
+    manager.close()
+    
+    # 验证清理行为
+    mock_provider.disconnect.assert_called_once()
+    mock_provider.unwatch_config.assert_called_once_with("config.json", "test")
+    assert len(manager._registered_configs) == 0
+    assert manager._store.get_config_count() == 0
+    
+    # 验证 close 之后，再次调用无副作用
+    manager.close()
+    mock_provider.disconnect.assert_called_once() # disconnect 不应被再次调用 
