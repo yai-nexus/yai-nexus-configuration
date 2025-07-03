@@ -1,0 +1,13 @@
+{
+    "app_name": "YAI Nexus File Demo",
+    "debug": false,
+    "log_level": "INFO",
+    "allowed_hosts": [
+        "localhost",
+        "127.0.0.1"
+    ],
+    "features": {
+        "feature_a": true,
+        "feature_b": false
+    }
+} 

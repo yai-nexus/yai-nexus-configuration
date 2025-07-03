@@ -1,0 +1,8 @@
+app_name: YAI Nexus YAML Demo
+debug: true
+log_level: DEBUG
+allowed_hosts:
+  - localhost
+features:
+  yaml_support: true
+  json_support: true 

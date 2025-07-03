@@ -190,8 +190,15 @@ class NacosProvider(AbstractProvider):
         
         watcher_key = self._get_watcher_key(data_id, group)
         
+        # 从内部存储中获取回调函数
+        callback = self._watchers.get(watcher_key)
+        
+        if not callback:
+            logger.warning(f"尝试取消未注册的监听器: {group}/{data_id}")
+            return
+            
         try:
-            self._client.remove_config_watcher(data_id, group)
+            self._client.remove_config_watcher(data_id, group, cb=callback)
             self._unregister_watcher(watcher_key)
             logger.info(f"停止监听配置变更: {group}/{data_id}")
             

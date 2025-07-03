@@ -2,205 +2,151 @@
 # -*- coding: utf-8 -*-
 
 """
-YAI Nexus Configuration 使用示例
+YAI Nexus Configuration Nacos Provider 使用示例
 
-演示如何使用这个高质量的配置管理库。
+本示例演示如何连接到 Nacos 服务器并获取配置。
+在运行此示例之前，请确保已根据下面的说明设置了必要的环境变量，
+并在您的 Nacos 实例中发布了对应的配置。
+
+--- Nacos 配置要求 ---
+请在您的 Nacos 服务器上创建以下两个配置：
+
+1. JSON 配置:
+   - Data ID: yai-nexus-configuration-json-test-1.json
+   - Group: yai-nexus-configuration
+   - Namespace: (您正在使用的命名空间，默认为 public)
+   - Content (JSON):
+     {
+       "app_name": "test_app",
+       "version": "1.0.0",
+       "enabled": true
+     }
+
+2. YAML 配置:
+   - Data ID: yai-nexus-configuration-yaml-test-1.yaml
+   - Group: yai-nexus-configuration
+   - Namespace: (您正在使用的命名空间，默认为 public)
+   - Content (YAML):
+     server:
+       host: "yaml-server.example.com"
+       port: 8080
+     retries:
+       - 100
+       - 200
+       - 500
 """
 
-import json
+import os
+import sys
 import time
-from typing import List
 
-# 导入我们的库
+# 将项目根目录添加到系统路径
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from src.yai_nexus_configuration import (
-    NexusConfigManager, 
-    NexusConfig, 
+    NexusConfigManager,
+    NexusConfig,
     nexus_config,
-    ConfigNotRegisteredError
 )
 
+# --- 1. 从环境变量读取 Nacos 连接信息 ---
+# 这是运行此示例所必需的。
+NACOS_SERVER_ADDR = os.environ.get("NACOS_SERVER_ADDR")
 
-# 示例 1: 数据库配置
-@nexus_config(data_id="database.json", group="PROD")
-class DatabaseConfig(NexusConfig):
-    """数据库配置"""
-    host: str
-    port: int = 5432
-    username: str
-    password: str
-    max_connections: int = 100
-    ssl_enabled: bool = True
+# 这些是可选的，但如果您的 Nacos 设置需要，请配置它们。
+NACOS_GROUP = os.environ.get("NACOS_GROUP", "yai-nexus-configuration")
+NACOS_NAMESPACE = os.environ.get("NACOS_NAMESPACE", "")
+NACOS_USERNAME = os.environ.get("NACOS_USERNAME")
+NACOS_PASSWORD = os.environ.get("NACOS_PASSWORD")
 
+# --- 2. 定义与 Nacos 配置匹配的类 ---
+JSON_DATA_ID = "yai-nexus-configuration-json-test-1.json"
+YAML_DATA_ID = "yai-nexus-configuration-yaml-test-1.yaml"
 
-# 示例 2: Redis 配置
-@nexus_config(data_id="redis.json", group="PROD") 
-class RedisConfig(NexusConfig):
-    """Redis 配置"""
-    host: str
-    port: int = 6379
-    password: str = ""
-    database: int = 0
-    timeout: float = 5.0
-
-
-# 示例 3: 应用配置
-@nexus_config(data_id="app.json")  # 使用默认组 DEFAULT_GROUP
-class AppConfig(NexusConfig):
-    """应用配置"""
+@nexus_config(data_id=JSON_DATA_ID, group=NACOS_GROUP)
+class NacosJsonConfig(NexusConfig):
+    """映射到 JSON 配置的类"""
     app_name: str
-    debug: bool = False
-    log_level: str = "INFO"
-    allowed_hosts: List[str] = []
-    features: dict = {}
+    version: str
+    enabled: bool
+
+class ServerDetails(NexusConfig):
+    """嵌套配置的子类"""
+    host: str
+    port: int
+
+@nexus_config(data_id=YAML_DATA_ID, group=NACOS_GROUP)
+class NacosYamlConfig(NexusConfig):
+    """映射到 YAML 配置的类"""
+    server: ServerDetails
+    retries: list[int]
 
 
-def demonstrate_basic_usage():
-    """演示基本用法"""
-    print("🚀 YAI Nexus Configuration 基本用法演示")
-    print("=" * 50)
-    
-    # 创建管理器 - 使用工厂方法
-    print("1. 创建配置管理器...")
+def main():
+    """主执行函数"""
+    print("🎉 欢迎使用 YAI Nexus Configuration Nacos 配置示例！ 🎉")
+
+    # --- 检查先决条件 ---
+    if not NACOS_SERVER_ADDR:
+        print("\n❌ 错误: 缺少环境变量 `NACOS_SERVER_ADDR`。")
+        print("   请在运行此脚本前设置该变量，例如:")
+        print("   export NACOS_SERVER_ADDR=127.0.0.1:8848")
+        sys.exit(1)
+
+    print("\n--- Nacos 连接参数 ---")
+    print(f"  服务器地址: {NACOS_SERVER_ADDR}")
+    print(f"  命名空间: {NACOS_NAMESPACE or 'public'}")
+    print(f"  分组: {NACOS_GROUP}")
+    print(f"  用户名: {NACOS_USERNAME or '未设置'}")
+    print("-------------------------\n")
+
+    # --- 3. 初始化管理器并获取配置 ---
     try:
-        manager = NexusConfigManager.with_nacos(
-            server_addresses="localhost:8848",
-            namespace="",  # 公共命名空间
-        )
-        print("✅ 管理器创建成功")
-    except Exception as e:
-        print(f"❌ 连接 Nacos 失败: {e}")
-        print("请确保 Nacos 服务器正在运行并且可访问")
-        return
-    
-    # 注册配置
-    print("\n2. 注册配置类...")
-    configs_to_register = [DatabaseConfig, RedisConfig, AppConfig]
-    
-    for config_class in configs_to_register:
-        try:
-            manager.register(config_class)
-            print(f"✅ 注册成功: {config_class.__name__}")
-        except Exception as e:
-            print(f"❌ 注册失败 {config_class.__name__}: {e}")
-    
-    # 获取和使用配置
-    print("\n3. 获取配置实例...")
-    try:
-        # 获取数据库配置
-        db_config = manager.get_config(DatabaseConfig)
-        print(f"📊 数据库配置: {db_config.host}:{db_config.port}")
-        print(f"   最大连接数: {db_config.max_connections}")
-        
-        # 获取 Redis 配置  
-        redis_config = manager.get_config(RedisConfig)
-        print(f"🔴 Redis 配置: {redis_config.host}:{redis_config.port}")
-        
-        # 获取应用配置
-        app_config = manager.get_config(AppConfig)
-        print(f"🏠 应用配置: {app_config.app_name}")
-        print(f"   调试模式: {app_config.debug}")
-        
-    except ConfigNotRegisteredError as e:
-        print(f"❌ 配置未注册: {e}")
-    except Exception as e:
-        print(f"❌ 获取配置失败: {e}")
-    
-    # 显示管理器状态
-    print("\n4. 管理器状态信息...")
-    manager_info = manager.get_manager_info()
-    print(f"📈 状态信息:")
-    print(f"   提供者: {manager_info['provider']['name']}")
-    print(f"   连接状态: {'✅ 已连接' if manager_info['provider']['connected'] else '❌ 未连接'}")
-    print(f"   已注册配置: {manager_info['registered_configs']} 个")
-    print(f"   配置列表: {', '.join(manager_info['config_names'])}")
-    
-    # 清理资源
-    print("\n5. 清理资源...")
-    manager.close()
-    print("✅ 管理器已关闭")
-
-
-def demonstrate_configuration_update():
-    """演示配置实时更新功能"""
-    print("\n🔄 配置实时更新演示")
-    print("=" * 50)
-    
-    try:
-        # 创建管理器
-        with NexusConfigManager.with_nacos("localhost:8848") as manager:
-            # 注册一个配置
-            manager.register(AppConfig)
-            
-            print("正在监听配置变更...")
-            print("您可以在 Nacos 控制台修改 app.json 配置来测试实时更新功能")
-            print("程序将在 30 秒后自动结束")
-            
-            # 监听 30 秒
-            for i in range(6):
-                time.sleep(5)
-                try:
-                    app_config = manager.get_config(AppConfig)
-                    print(f"[{i*5+5}s] 当前配置: {app_config.get_config_summary()}")
-                except Exception as e:
-                    print(f"[{i*5+5}s] 获取配置失败: {e}")
-                    
-    except Exception as e:
-        print(f"❌ 演示失败: {e}")
-
-
-def create_sample_configs():
-    """创建示例配置数据（需要手动在 Nacos 中创建）"""
-    print("\n📝 示例配置数据")
-    print("=" * 50)
-    print("请在 Nacos 控制台中创建以下配置：")
-    
-    configs = {
-        "PROD/database.json": {
-            "host": "localhost",
-            "port": 5432,
-            "username": "myuser",
-            "password": "mypassword",
-            "max_connections": 50,
-            "ssl_enabled": True
-        },
-        "PROD/redis.json": {
-            "host": "localhost", 
-            "port": 6379,
-            "password": "",
-            "database": 0,
-            "timeout": 3.0
-        },
-        "DEFAULT_GROUP/app.json": {
-            "app_name": "YAI Nexus Demo",
-            "debug": False,
-            "log_level": "INFO",
-            "allowed_hosts": ["localhost", "127.0.0.1"],
-            "features": {
-                "feature_a": True,
-                "feature_b": False
-            }
+        connection_args = {
+            "server_addresses": NACOS_SERVER_ADDR,
+            "namespace": NACOS_NAMESPACE,
+            "username": NACOS_USERNAME,
+            "password": NACOS_PASSWORD
         }
-    }
-    
-    for config_path, config_data in configs.items():
-        print(f"\n配置路径: {config_path}")
-        print(f"配置内容:")
-        print(json.dumps(config_data, indent=2, ensure_ascii=False))
+        # 清理掉值为 None 的参数
+        valid_args = {k: v for k, v in connection_args.items() if v is not None}
 
+        with NexusConfigManager.with_nacos(**valid_args) as manager:
+            print("✅ Nacos 管理器创建成功，已连接至服务器。")
+            
+            # 注册配置类
+            manager.register(NacosJsonConfig)
+            manager.register(NacosYamlConfig)
+            print("✅ 配置类 `NacosJsonConfig` 和 `NacosYamlConfig` 注册成功。")
+            
+            # 获取并显示配置
+            print("\n--- 获取配置 ---")
+            json_config = manager.get_config(NacosJsonConfig)
+            print(f"  - [JSON] app_name: {json_config.app_name}, version: {json_config.version}")
+            
+            yaml_config = manager.get_config(NacosYamlConfig)
+            print(f"  - [YAML] server.host: {yaml_config.server.host}, retries: {yaml_config.retries}")
+
+            # --- 4. 演示配置动态更新 ---
+            print("\n--- 动态更新演示 (持续 15 秒) ---")
+            print("现在您可以尝试在 Nacos 控制台修改上述任一配置的值。")
+            print("脚本将每秒检查一次更新。")
+            
+            for i in range(15):
+                json_ver = manager.get_config(NacosJsonConfig).version
+                yaml_host = manager.get_config(NacosYamlConfig).server.host
+                print(f"\r[{i+1:2d}/15s] 当前值: JSON version='{json_ver}', YAML host='{yaml_host}'          ", end="")
+                time.sleep(1)
+            print("\n--- 监听结束 ---\n")
+
+    except Exception as e:
+        print(f"\n❌ 发生严重错误: {e}")
+        print("\n--- 故障排查建议 ---")
+        print("1. 检查 Nacos 服务器是否正在运行并且网络可达。")
+        print(f"2. 确认您的连接参数（服务器地址、命名空间、分组、用户名/密码）是否正确。")
+        print(f"3. 确保在 Nacos 中已创建了本示例所需的两个配置（Data ID: {JSON_DATA_ID}, {YAML_DATA_ID}）。")
+
+    print("🎊 Nacos 配置示例结束！")
 
 if __name__ == "__main__":
-    print("🎉 欢迎使用 YAI Nexus Configuration!")
-    print("这是一个基于 Provider 模式的高质量配置管理库\n")
-    
-    # 显示示例配置
-    create_sample_configs()
-    
-    # 基本用法演示
-    demonstrate_basic_usage()
-    
-    # 配置更新演示（可选）
-    choice = input("\n是否演示配置实时更新功能？(y/n): ")
-    if choice.lower() in ['y', 'yes']:
-        demonstrate_configuration_update()
-    
-    print("\n🎊 演示结束！感谢使用 YAI Nexus Configuration!") 
+    main() 

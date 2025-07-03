@@ -1,0 +1,8 @@
+{
+    "host": "localhost",
+    "port": 5432,
+    "username": "myuser",
+    "password": "mypassword",
+    "max_connections": 50,
+    "ssl_enabled": true
+} 

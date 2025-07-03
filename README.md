@@ -20,32 +20,56 @@
 ### 安装
 
 ```bash
-pip install yai-nexus-configuration
+pip install yai-nexus-configuration[file]
 ```
 
-### 基本用法
+### 使用本地文件
+
+这是最快体验本库功能的方式，无需任何外部服务。
+
+**1. 创建配置文件**
+
+在您的项目根目录创建一个 `configs` 文件夹，并像这样组织您的配置：
+
+```
+configs/
+└── DEFAULT_GROUP/
+    └── app.json
+```
+
+文件 `configs/DEFAULT_GROUP/app.json` 的内容:
+```json
+{
+  "app_name": "My Awesome App",
+  "debug": true,
+  "log_level": "DEBUG"
+}
+```
+
+**2. 编写 Python 代码**
 
 ```python
 from yai_nexus_configuration import NexusConfigManager, NexusConfig, nexus_config
 
-# 1. 定义配置模型
-@nexus_config(data_id="database.json", group="PROD")
-class DatabaseConfig(NexusConfig):
-    host: str
-    port: int = 5432
-    username: str
-    password: str
-    max_connections: int = 100
+# 定义配置模型，它会自动映射到 app.json
+@nexus_config(data_id="app.json") # group 默认为 DEFAULT_GROUP
+class AppConfig(NexusConfig):
+    app_name: str
+    debug: bool
+    log_level: str
 
-# 2. 创建管理器并注册配置
-manager = NexusConfigManager.with_nacos("localhost:8848")
-manager.register(DatabaseConfig)
+# 使用 with 语句创建管理器，它会自动管理资源
+with NexusConfigManager.with_file(base_path="configs") as manager:
+    # 注册配置类
+    manager.register(AppConfig)
+    
+    # 获取类型安全的配置实例
+    app_config = manager.get_config(AppConfig)
+    
+    print(f"应用名称: {app_config.app_name}")
+    print(f"调试模式: {app_config.debug}")
 
-# 3. 获取配置实例
-db_config = manager.get_config(DatabaseConfig)
-print(f"Database: {db_config.host}:{db_config.port}")
-
-# 4. 配置会自动更新，无需手动刷新！
+# 当您修改 app.json 文件并保存后，再次获取配置，就会看到更新！
 ```
 
 ## 🏗️ 架构设计
@@ -86,67 +110,76 @@ YAI Nexus Configuration 采用了经过深度思考的 **方案 E（工厂模式
 | **Nacos** | ✅ 已支持 | `NexusConfigManager.with_nacos()` | 阿里巴巴开源的配置中心 |
 | **Apollo** | 🚧 规划中 | `NexusConfigManager.with_apollo()` | 携程开源的配置中心 |
 | **Etcd** | 🚧 规划中 | `NexusConfigManager.with_etcd()` | 分布式键值存储 |
-| **本地文件** | ✅ 已支持 | `NexusConfigManager.with_file()` | 本地 JSON/YAML 文件 |
+| **本地文件** | ✅ 已支持 | `NexusConfigManager.with_file()` | 本地 JSON/YAML/ENV 文件 |
 
 ## 📖 详细文档
 
 ### 文件配置使用
 
+文件提供者可以根据文件扩展名（`.json` 或 `.yaml`）自动选择解析器。
+
+**1. 定义多个配置类**
+
 ```python
 from yai_nexus_configuration import NexusConfigManager, NexusConfig, nexus_config
 
-# 定义配置类（装饰器保持一致）
+# JSON 配置
 @nexus_config(data_id="app.json", group="DEFAULT_GROUP")
 class AppConfig(NexusConfig):
     app_name: str
-    debug: bool = False
-    log_level: str = "INFO"
+    debug: bool
 
-# 使用文件配置管理器
-manager = NexusConfigManager.with_file(
-    base_path="configs",          # 配置文件目录
-    default_format="json",        # 默认格式：json 或 yaml
-    watch_interval=1.0,           # 文件监听间隔（秒）
-    auto_create_dirs=True         # 自动创建目录
-)
-
-# 文件路径：configs/DEFAULT_GROUP/app.json
-# 文件内容：{"app_name": "My App", "debug": true, "log_level": "DEBUG"}
-
-manager.register(AppConfig)
-app_config = manager.get_config(AppConfig)
-print(f"App: {app_config.app_name}, Debug: {app_config.debug}")
-
-# 支持 YAML 格式（需要安装 PyYAML）
-yaml_manager = NexusConfigManager.with_file(
-    base_path="configs",
-    default_format="yaml"
-)
+# YAML 配置 (需要安装 PyYAML)
+@nexus_config(data_id="database.yaml", group="PROD")
+class DbConfig(NexusConfig):
+    host: str
+    port: int
 ```
 
-### 配置类定义
+**2. 使用同一个管理器**
 
 ```python
-from yai_nexus_configuration import NexusConfig, nexus_config
-from typing import List
-
-@nexus_config(data_id="app.json", group="DEFAULT_GROUP")
-class AppConfig(NexusConfig):
-    """应用配置"""
-    app_name: str
-    debug: bool = False
-    log_level: str = "INFO"
-    allowed_hosts: List[str] = []
+# 只需要一个管理器实例
+with NexusConfigManager.with_file(
+    base_path="configs",        # 配置文件根目录
+    watch_interval=1.0,         # 文件监听间隔（秒）
+) as manager:
     
-    # 支持嵌套配置
-    database: dict = {}
-    redis: dict = {}
+    # 你的文件结构:
+    # configs/
+    # ├── DEFAULT_GROUP/
+    # │   └── app.json
+    # └── PROD/
+    #     └── database.yaml
+
+    # 批量注册
+    manager.register(AppConfig, DbConfig)
+    
+    # 获取配置
+    app_config = manager.get_config(AppConfig)
+    db_config = manager.get_config(DbConfig)
+    
+    print(f"应用: {app_config.app_name}, 数据库主机: {db_config.host}")
+```
+
+### Nacos 配置使用
+
+```python
+# 创建管理器（建议从环境变量获取敏感信息）
+manager = NexusConfigManager.with_nacos(
+    server_addresses=os.environ.get("NACOS_SERVER_ADDR"),
+    namespace=os.environ.get("NACOS_NAMESPACE"),
+    username=os.environ.get("NACOS_USERNAME"),
+    password=os.environ.get("NACOS_PASSWORD")
+)
+
+# 查看 examples/nacos_example.py 获取最佳实践
 ```
 
 ### 管理器使用
 
 ```python
-# 创建管理器（支持多种参数）
+# 创建管理器（以 Nacos 为例）
 manager = NexusConfigManager.with_nacos(
     server_addresses="localhost:8848",
     namespace="production",
@@ -258,11 +291,8 @@ except ConfigNotRegisteredError as e:
 ### 基础安装
 
 ```bash
-# 最小安装（仅核心功能）
+# 最小安装（包含文件和 YAML 支持）
 pip install yai-nexus-configuration
-
-# 或者从源码安装
-pip install -r requirements-core.txt
 ```
 
 ### 功能扩展安装
@@ -270,12 +300,6 @@ pip install -r requirements-core.txt
 ```bash
 # 安装 Nacos 支持
 pip install yai-nexus-configuration[nacos]
-
-# 安装 YAML 文件支持
-pip install yai-nexus-configuration[yaml]
-
-# 安装文件配置支持（包含 YAML）
-pip install yai-nexus-configuration[file]
 
 # 安装所有功能
 pip install yai-nexus-configuration[all]
@@ -298,11 +322,18 @@ pip install -e ".[dev]"
 ### 快速开始
 
 ```bash
-# 运行 Nacos 示例（需要 Nacos 服务器）
-python examples/example.py
+# 运行文件配置示例（无外部依赖）
+python3 examples/file_example.py
 
-# 运行文件配置示例
-python examples/file_example.py
+# 运行 Nacos 示例
+# 1. 确保 Nacos 服务正在运行，并已按示例文件中的说明创建配置
+# 2. 设置环境变量:
+#    export NACOS_SERVER_ADDR="your_nacos_address:8848"
+#    export NACOS_NAMESPACE="your_namespace" # (可选)
+#    export NACOS_USERNAME="nacos"           # (可选)
+#    export NACOS_PASSWORD="nacos"         # (可选)
+# 3. 运行脚本:
+python3 examples/nacos_example.py
 ```
 
 ## 🧑‍💻 开发
