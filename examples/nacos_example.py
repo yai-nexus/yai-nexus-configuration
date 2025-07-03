@@ -15,13 +15,13 @@ from typing import List
 from src.yai_nexus_configuration import (
     NexusConfigManager, 
     NexusConfig, 
-    nacos_config,
+    nexus_config,
     ConfigNotRegisteredError
 )
 
 
 # 示例 1: 数据库配置
-@nacos_config(data_id="database.json", group="PROD")
+@nexus_config(data_id="database.json", group="PROD")
 class DatabaseConfig(NexusConfig):
     """数据库配置"""
     host: str
@@ -33,7 +33,7 @@ class DatabaseConfig(NexusConfig):
 
 
 # 示例 2: Redis 配置
-@nacos_config(data_id="redis.json", group="PROD") 
+@nexus_config(data_id="redis.json", group="PROD") 
 class RedisConfig(NexusConfig):
     """Redis 配置"""
     host: str
@@ -44,7 +44,7 @@ class RedisConfig(NexusConfig):
 
 
 # 示例 3: 应用配置
-@nacos_config(data_id="app.json")  # 使用默认组 DEFAULT_GROUP
+@nexus_config(data_id="app.json")  # 使用默认组 DEFAULT_GROUP
 class AppConfig(NexusConfig):
     """应用配置"""
     app_name: str

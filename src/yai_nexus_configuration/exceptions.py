@@ -64,6 +64,6 @@ class MissingConfigMetadataError(NexusConfigError):
         self.config_class = config_class
         self.missing_attr = missing_attr
         super().__init__(
-            f"配置类 {config_class.__name__} 缺少必要的元数据 '{missing_attr}'. "
-            f"请确保使用了 @nacos_config 装饰器。"
+            f"配置类 {config_class.__name__} 缺少必要的元数据. "
+            f"请确保使用了 @nexus_config 装饰器。"
         )

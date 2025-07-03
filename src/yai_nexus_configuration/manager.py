@@ -10,10 +10,11 @@ NexusConfigManager 是整个配置系统的入口，采用工厂模式设计，�
 import json
 import logging
 import threading
+from pathlib import Path
 from typing import Type, TypeVar, Dict, Any, Optional, Union, List
 
-from .providers import AbstractProvider, NacosProvider
-from .store import ConfigStore
+from .internal.providers import AbstractProvider, NacosProvider, FileProvider
+from .internal.store import ConfigStore
 from .decorator import get_config_metadata
 from .exceptions import (
     ConfigNotRegisteredError,
@@ -93,6 +94,51 @@ class NexusConfigManager:
         )
         return cls(provider)
     
+    @classmethod
+    def with_file(
+        cls,
+        base_path: Union[str, Path] = "configs",
+        default_format: str = "json",
+        watch_interval: float = 1.0,
+        auto_create_dirs: bool = True
+    ) -> "NexusConfigManager":
+        """
+        使用本地文件作为配置源创建管理器
+        
+        Args:
+            base_path: 配置文件的基础目录路径，默认为 "configs"
+            default_format: 默认文件格式，支持 "json" 或 "yaml"，默认为 "json"
+            watch_interval: 文件变更监听间隔（秒），默认为 1.0
+            auto_create_dirs: 是否自动创建不存在的目录，默认为 True
+            
+        Returns:
+            配置好的 NexusConfigManager 实例
+            
+        Example:
+            >>> # 使用默认设置（JSON 格式，configs 目录）
+            >>> manager = NexusConfigManager.with_file()
+            >>> 
+            >>> # 自定义配置
+            >>> manager = NexusConfigManager.with_file(
+            ...     base_path="my_configs",
+            ...     default_format="yaml",
+            ...     watch_interval=0.5
+            ... )
+            >>> manager.register(DatabaseConfig)
+            >>> db_config = manager.get_config(DatabaseConfig)
+            
+        Note:
+            文件路径格式为: {base_path}/{group}/{data_id}.{format}
+            例如: configs/PROD/database.json
+        """
+        provider = FileProvider(
+            base_path=base_path,
+            default_format=default_format,
+            watch_interval=watch_interval,
+            auto_create_dirs=auto_create_dirs
+        )
+        return cls(provider)
+    
     def register(self, config_class: Type[T]) -> None:
         """
         注册配置类
@@ -103,7 +149,7 @@ class NexusConfigManager:
         3. 开始监听配置变更
         
         Args:
-            config_class: 被 @nacos_config 装饰的配置类
+            config_class: 被 @nexus_config 装饰的配置类
             
         Raises:
             MissingConfigMetadataError: 如果配置类缺少必要的元数据
@@ -118,7 +164,7 @@ class NexusConfigManager:
             # 获取配置元数据
             metadata = get_config_metadata(config_class)
             if not metadata:
-                raise MissingConfigMetadataError(config_class, "nacos_config")
+                raise MissingConfigMetadataError(config_class, "nexus_config")
             
             data_id = metadata['data_id']
             group = metadata['group']

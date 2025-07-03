@@ -12,7 +12,7 @@ import logging
 from typing import Type, TypeVar, Dict, Optional, Any
 from pydantic import BaseModel
 
-from .exceptions import ConfigNotRegisteredError
+from ..exceptions import ConfigNotRegisteredError
 
 
 T = TypeVar("T", bound=BaseModel)

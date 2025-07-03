@@ -9,8 +9,10 @@ YAI Nexus Configuration - Providers 模块
 
 from .base import AbstractProvider
 from .nacos import NacosProvider
+from .file import FileProvider
 
 __all__ = [
     'AbstractProvider',
     'NacosProvider',
+    'FileProvider',
 ]

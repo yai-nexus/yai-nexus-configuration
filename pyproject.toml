@@ -42,21 +42,26 @@ keywords = [
 ]
 requires-python = ">=3.8"
 dependencies = [
-    "pydantic>=2.0.0",
+    "pydantic>=2.0.0,<3.0.0",
 ]
 
 [project.optional-dependencies]
 nacos = [
-    "nacos-sdk-python>=0.1.4",
+    "nacos-sdk-python>=2.0.0,<3.0.0",
 ]
-dev = [
-    "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
-    "pytest-asyncio>=0.21.0",
-    "black>=23.0.0",
-    "isort>=5.12.0",
-    "flake8>=6.0.0",
-    "mypy>=1.0.0",
+yaml = [
+    "PyYAML>=6.0.0,<7.0.0",
+]
+test = [
+    "pytest>=7.0.0,<8.0.0",
+    "pytest-cov>=4.0.0,<5.0.0",
+    "pytest-asyncio>=0.21.0,<1.0.0",
+]
+lint = [
+    "black>=23.0.0,<24.0.0",
+    "isort>=5.12.0,<6.0.0",
+    "flake8>=6.0.0,<7.0.0",
+    "mypy>=1.0.0,<2.0.0",
     "pre-commit>=3.0.0",
 ]
 docs = [
@@ -64,8 +69,13 @@ docs = [
     "mkdocs-material>=9.0.0",
     "mkdocstrings[python]>=0.20.0",
 ]
+# 开发依赖集合
+dev = [
+    "yai-nexus-configuration[test,lint]",
+]
+# 全部依赖
 all = [
-    "yai-nexus-configuration[nacos,dev,docs]"
+    "yai-nexus-configuration[nacos,yaml,dev,docs]",
 ]
 
 [project.urls]
@@ -138,7 +148,7 @@ testpaths = [
     "tests",
 ]
 pythonpath = [
-    "src"
+    ".", "src"
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",

@@ -12,7 +12,7 @@ import logging
 from typing import Callable, Optional, Union, List
 
 from .base import AbstractProvider
-from ..exceptions import ProviderConnectionError, ConfigSourceError
+from ...exceptions import ProviderConnectionError, ConfigSourceError
 
 logger = logging.getLogger(__name__)
 
