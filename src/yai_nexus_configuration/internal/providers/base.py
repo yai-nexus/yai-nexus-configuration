@@ -125,4 +125,4 @@ class AbstractProvider(ABC):
     
     def _get_watcher_key(self, data_id: str, group: str) -> str:
         """生成监听器的唯一键"""
-        return f"{group}/{data_id}"
+        return f"{group}::{data_id}"

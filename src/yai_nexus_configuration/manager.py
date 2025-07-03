@@ -8,6 +8,7 @@ NexusConfigManager 是整个配置系统的入口，采用工厂模式设计，�
 """
 
 import json
+import yaml
 import logging
 import threading
 from pathlib import Path
@@ -139,6 +140,47 @@ class NexusConfigManager:
         )
         return cls(provider)
     
+    def _parse_config_content(self, content: str, data_id: str) -> Dict[str, Any]:
+        """
+        智能解析配置内容，支持 JSON 和 YAML，遵循严格的格式约定。
+        
+        Args:
+            content: 配置内容的原始字符串
+            data_id: 配置文件名，用于推断格式
+            
+        Returns:
+            解析后的配置字典
+            
+        Raises:
+            ConfigValidationError: 如果解析失败或格式不正确
+        """
+        lowered_data_id = data_id.lower()
+        data: Any
+
+        # 严格根据文件扩展名选择解析器
+        if lowered_data_id.endswith(('.yaml', '.yml')):
+            if not HAS_YAML:
+                raise ConfigValidationError(data_id, "YAML 解析需要 PyYAML，请安装")
+            try:
+                data = yaml.safe_load(content)
+            except yaml.YAMLError as e:
+                raise ConfigValidationError(data_id, f"YAML 解析失败: {e}")
+        else:
+            # 默认为 JSON 解析
+            try:
+                data = json.loads(content)
+            except json.JSONDecodeError as e:
+                raise ConfigValidationError(data_id, f"JSON 解析失败: {e}")
+
+        # 验证解析后的根对象必须是字典
+        if not isinstance(data, dict):
+            raise ConfigValidationError(
+                data_id, 
+                f"配置内容必须是字典/映射格式，但解析后得到的是 {type(data).__name__}"
+            )
+            
+        return data
+
     def register(self, config_class: Type[T]) -> None:
         """
         注册配置类
@@ -172,7 +214,7 @@ class NexusConfigManager:
             # 从配置源获取初始配置
             try:
                 raw_config = self._provider.get_config(data_id, group)
-                config_data = json.loads(raw_config)
+                config_data = self._parse_config_content(raw_config, data_id)
                 
                 # 创建配置实例
                 config_instance = config_class(**config_data)
@@ -186,8 +228,8 @@ class NexusConfigManager:
                 
                 logger.info(f"成功注册配置: {config_class.__name__} ({group}/{data_id})")
                 
-            except json.JSONDecodeError as e:
-                raise ConfigValidationError(f"{group}/{data_id}", f"JSON 解析失败: {e}")
+            except ConfigValidationError:
+                raise
             except Exception as e:
                 if "ValidationError" in str(type(e)):
                     raise ConfigValidationError(f"{group}/{data_id}", str(e))
@@ -256,7 +298,7 @@ class NexusConfigManager:
             
             try:
                 raw_config = self._provider.get_config(data_id, group)
-                config_data = json.loads(raw_config)
+                config_data = self._parse_config_content(raw_config, data_id)
                 config_instance = config_class(**config_data)
                 
                 self._store.set_config(config_instance)
@@ -308,7 +350,7 @@ class NexusConfigManager:
         def on_config_change(new_content: str):
             """配置变更回调"""
             try:
-                config_data = json.loads(new_content)
+                config_data = self._parse_config_content(new_content, data_id)
                 new_instance = config_class(**config_data)
                 self._store.set_config(new_instance)
                 logger.info(f"配置已更新: {config_class.__name__}")

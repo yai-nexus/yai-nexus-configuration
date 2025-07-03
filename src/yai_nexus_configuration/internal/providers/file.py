@@ -293,38 +293,45 @@ class FileProvider(AbstractProvider):
             self._stop_event.wait(self.watch_interval)
     
     def _check_file_changes(self) -> None:
-        """检查文件是否发生变更"""
+        """检查文件变更并触发回调"""
+        # 创建 watcher 字典的副本进行迭代，以避免在迭代期间修改字典
         for watcher_key, callback in list(self._watchers.items()):
+            group, data_id = watcher_key.split("::", 1)
+            file_path = self._get_config_file_path(data_id, group)
+            
+            # 检查文件是否存在
+            if not file_path.exists():
+                continue
+            
             try:
-                # 解析 watcher_key 获取 group 和 data_id
-                group, data_id = watcher_key.split('/', 1)
-                file_path = self._get_config_file_path(data_id, group)
-                file_path_str = str(file_path)
-                
-                if not file_path.exists():
-                    continue
-                
                 current_mtime = file_path.stat().st_mtime
-                last_mtime = self._file_mtimes.get(file_path_str, 0)
-                
-                # 检查文件是否被修改
-                if current_mtime > last_mtime:
-                    self._file_mtimes[file_path_str] = current_mtime
+                last_mtime = self._file_mtimes.get(str(file_path))
+
+                # 如果是新文件或文件已修改
+                if last_mtime is None or current_mtime > last_mtime:
+                    logger.info(f"检测到文件变更: {file_path}")
+                    self._file_mtimes[str(file_path)] = current_mtime
                     
-                    # 读取新内容并触发回调
                     try:
                         with open(file_path, 'r', encoding='utf-8') as f:
-                            new_content = f.read().strip()
+                            content = f.read().strip()
                         
-                        if new_content:
-                            logger.info(f"检测到配置文件变更: {file_path}")
-                            callback(new_content)
-                        
+                        if content:
+                            callback(content)
+                        else:
+                            logger.warning(f"配置文件变为空，跳过回调: {file_path}")
+                            
                     except Exception as e:
-                        logger.error(f"读取变更后的配置文件失败: {file_path}, 错误: {str(e)}")
-                        
+                        logger.error(f"读取变更后的文件失败: {file_path}, 错误: {e}")
+
+            except FileNotFoundError:
+                # 文件可能在检查期间被删除
+                if str(file_path) in self._file_mtimes:
+                    del self._file_mtimes[str(file_path)]
+                logger.warning(f"文件在检查期间被删除: {file_path}")
+            
             except Exception as e:
-                logger.error(f"检查文件变更时出错: {watcher_key}, 错误: {str(e)}")
+                logger.error(f"检查文件变更时出错: {file_path}, 错误: {e}")
     
     def create_sample_config(self, data_id: str, group: str, config_data: dict) -> Path:
         """
