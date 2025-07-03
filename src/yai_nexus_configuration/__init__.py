@@ -15,7 +15,7 @@ YAI Nexus Configuration - 高质量的配置管理库
 - ✅ 基于 Pydantic 的数据验证
 
 基本用法：
-    >>> from yai_nexus_configuration import NexusManager, NexusConfig, nacos_config
+    >>> from yai_nexus_configuration import NexusConfigManager, NexusConfig, nacos_config
     >>> 
     >>> @nacos_config(data_id="database.json")
     >>> class DatabaseConfig(NexusConfig):
@@ -25,7 +25,7 @@ YAI Nexus Configuration - 高质量的配置管理库
     ...     password: str
     >>> 
     >>> # 创建管理器并注册配置
-    >>> manager = NexusManager.with_nacos("localhost:8848")
+    >>> manager = NexusConfigManager.with_nacos("localhost:8848")
     >>> manager.register(DatabaseConfig)
     >>> 
     >>> # 获取配置实例
@@ -38,7 +38,7 @@ __author__ = "YAI Team"
 __email__ = "team@yai.com"
 
 # 导出核心组件
-from .manager import NexusManager
+from .manager import NexusConfigManager
 from .config import NexusConfig
 from .decorator import nacos_config
 from .store import ConfigStore
@@ -63,7 +63,7 @@ __all__ = [
     "__version__",
     
     # 核心组件
-    "NexusManager",
+    "NexusConfigManager",
     "NexusConfig", 
     "nacos_config",
     "ConfigStore",

@@ -4,7 +4,7 @@
 """
 YAI Nexus Configuration - 核心管理器
 
-NexusManager 是整个配置系统的入口，采用工厂模式设计，提供优雅的 API。
+NexusConfigManager 是整个配置系统的入口，采用工厂模式设计，提供优雅的 API。
 """
 
 import json
@@ -26,7 +26,7 @@ T = TypeVar("T")
 logger = logging.getLogger(__name__)
 
 
-class NexusManager:
+class NexusConfigManager:
     """
     配置管理器
     
@@ -65,7 +65,7 @@ class NexusManager:
         username: Optional[str] = None,
         password: Optional[str] = None,
         **kwargs
-    ) -> "NexusManager":
+    ) -> "NexusConfigManager":
         """
         使用 Nacos 作为配置源创建管理器
         
@@ -77,10 +77,10 @@ class NexusManager:
             **kwargs: 其他传递给 Nacos 客户端的参数
             
         Returns:
-            配置好的 NexusManager 实例
+            配置好的 NexusConfigManager 实例
             
         Example:
-            >>> manager = NexusManager.with_nacos("localhost:8848")
+            >>> manager = NexusConfigManager.with_nacos("localhost:8848")
             >>> manager.register(DatabaseConfig)
             >>> db_config = manager.get_config(DatabaseConfig)
         """

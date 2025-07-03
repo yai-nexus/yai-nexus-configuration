@@ -31,7 +31,7 @@ class NexusConfig(BaseModel):
         ...     username: str
         ...     password: str
         ...     
-        >>> # 配置类现在可以被 NexusManager 注册和管理
+        >>> # 配置类现在可以被 NexusConfigManager 注册和管理
     """
     
     class Config:

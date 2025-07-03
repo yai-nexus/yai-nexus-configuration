@@ -13,7 +13,7 @@ from typing import List
 
 # 导入我们的库
 from src.yai_nexus_configuration import (
-    NexusManager, 
+    NexusConfigManager, 
     NexusConfig, 
     nacos_config,
     ConfigNotRegisteredError
@@ -62,7 +62,7 @@ def demonstrate_basic_usage():
     # 创建管理器 - 使用工厂方法
     print("1. 创建配置管理器...")
     try:
-        manager = NexusManager.with_nacos(
+        manager = NexusConfigManager.with_nacos(
             server_addresses="localhost:8848",
             namespace="",  # 公共命名空间
         )
@@ -127,7 +127,7 @@ def demonstrate_configuration_update():
     
     try:
         # 创建管理器
-        with NexusManager.with_nacos("localhost:8848") as manager:
+        with NexusConfigManager.with_nacos("localhost:8848") as manager:
             # 注册一个配置
             manager.register(AppConfig)
             
