@@ -1,0 +1,68 @@
+# --- 项目信息 ---
+site_name: YAI Nexus Configuration
+site_url: https://yai-nexus.github.io/yai-nexus-configuration/
+site_description: 高质量的 Python 配置管理库 - 基于 Provider 模式，支持多种配置源
+site_author: Harry
+
+# --- 主题和样式 ---
+theme:
+  name: material
+  palette:
+    # 日间模式
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # 夜间模式
+    - scheme: slate
+      primary: black
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - toc.integrate
+    - navigation.top
+    - search.suggest
+    - content.code.copy
+    - content.code.annotate
+
+# --- 插件配置 ---
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_root_heading: yes
+            show_root_toc_entry: yes
+
+# --- 导航菜单 ---
+nav:
+  - '首页': 'index.md'
+  - '使用指南':
+    - '快速开始': 'guides/quickstart.md'
+    - '文件配置': 'guides/file_provider.md'
+    - 'Nacos 配置': 'guides/nacos_provider.md'
+    - '最佳实践：大型项目集成': 'guides/best_practices.md'
+  - 'API 参考':
+    - '管理器 (NexusConfigManager)': 'api/manager.md'
+    - '配置类 (NexusConfig)': 'api/config_class.md'
+  - '贡献指南': 'CONTRIBUTING.md'
+  - '更新日志': 'CHANGELOG.md'
+
+# --- Markdown 扩展 ---
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - toc:
+      permalink: true 

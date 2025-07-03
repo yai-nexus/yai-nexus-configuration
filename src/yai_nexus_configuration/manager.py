@@ -67,7 +67,7 @@ class NexusConfigManager:
         namespace: str = "",
         username: Optional[str] = None,
         password: Optional[str] = None,
-        **kwargs
+        **kwargs: Any
     ) -> "NexusConfigManager":
         """
         使用 Nacos 作为配置源创建管理器
