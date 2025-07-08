@@ -10,12 +10,14 @@ NexusConfigManager 是整个配置系统的入口，采用工厂模式设计，�
 import json
 import yaml
 import logging
+import warnings  # 导入 warnings 模块
 import threading
 from pathlib import Path
 from typing import Type, TypeVar, Dict, Any, Optional, Union, List
 
 from .internal.providers import AbstractProvider, NacosProvider, FileProvider
 from .internal.store import ConfigStore
+from .internal.utils import recursive_replace_env_vars  # 导入新函数
 from .decorator import get_config_metadata
 from .exceptions import (
     ConfigNotRegisteredError,
@@ -42,7 +44,7 @@ class NexusConfigManager:
     - 类型安全：完整的类型提示支持
     """
     
-    def __init__(self, provider: AbstractProvider):
+    def __init__(self, provider: Optional[AbstractProvider] = None):
         """
         初始化管理器
         
@@ -51,14 +53,24 @@ class NexusConfigManager:
         Args:
             provider: 配置提供者实例
         """
-        self._provider = provider
+        if provider is None:
+            warnings.warn(
+                "直接实例化 NexusConfigManager 已不被推荐，并将在未来版本中移除。"
+                "请使用 .with_file() 或 .with_nacos() 等工厂方法创建管理器。",
+                DeprecationWarning,
+                stacklevel=2
+            )
+            # 为了保持向后兼容性，我们允许这样做，但功能将受限
+            self._provider = None
+        else:
+            self._provider = provider
+            # 仅在提供了有效的 provider 时才连接
+            self._provider.connect()
+
         self._store = ConfigStore()
         self._registered_configs: Dict[Type, Dict[str, str]] = {}
         self._lock = threading.RLock()
         self._closed = False
-        
-        # 连接到配置源
-        self._provider.connect()
         
     @classmethod
     def with_nacos(
@@ -143,7 +155,7 @@ class NexusConfigManager:
     
     def _parse_config_content(self, content: str, data_id: str) -> Dict[str, Any]:
         """
-        智能解析配置内容，支持 JSON 和 YAML，遵循严格的格式约定。
+        智能解析配置内容，支持 JSON 和 YAML，并自动替换环境变量。
         
         Args:
             content: 配置内容的原始字符串
@@ -177,8 +189,11 @@ class NexusConfigManager:
                 data_id, 
                 f"配置内容必须是字典/映射格式，但解析后得到的是 {type(data).__name__}"
             )
+        
+        # 新增步骤：在验证前进行环境变量替换
+        processed_data = recursive_replace_env_vars(data)
             
-        return data
+        return processed_data
 
     def register(self, config_class: Type[T]) -> None:
         """
@@ -341,7 +356,7 @@ class NexusConfigManager:
                 self._provider.unwatch_config(metadata['data_id'], metadata['group'])
             
             # 断开提供者连接
-            if self._provider.is_connected():
+            if self._provider and self._provider.is_connected():
                 self._provider.disconnect()
             
             # 清空存储并标记为已关闭

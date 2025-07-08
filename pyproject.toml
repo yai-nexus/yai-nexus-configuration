@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "yai-nexus-configuration"
-version = "0.1.0"
+version = "0.1.1"
 description = "高质量的 Python 配置管理库 - 基于 Provider 模式，支持多种配置源"
 readme = "README.md"
 license = {text = "MIT"}

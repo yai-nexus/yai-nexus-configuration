@@ -6,6 +6,71 @@
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Version](https://img.shields.io/badge/version-0.1.0-orange.svg)
 
+## 🎬 快速上手 (Hello, World!)
+
+这是体验 `yai-nexus-configuration` 核心功能的最快方式。我们将通过一个完整的、可运行的示例，展示“**定义 -> 创建 -> 注册 -> 获取**”的黄金路径。
+
+### 1. 项目结构
+
+首先，请像这样组织您的项目文件：
+
+```
+your-project/
+├── configs/
+│   └── DEFAULT_GROUP/
+│       └── app_config.json
+└── main.py
+```
+
+### 2. 创建配置文件
+
+在 `configs/DEFAULT_GROUP/` 目录下创建一个名为 `app_config.json` 的文件，内容如下：
+
+```json
+{
+  "database_url": "sqlite:///./test.db",
+  "retries": 5,
+  "api_key": "a-secret-key-from-environment"
+}
+```
+> **提示**: 在未来的版本中，我们将支持 `${VAR}` 格式的环境变量自动替换，以增强安全性。
+
+### 3. 编写 Python 代码 (`main.py`)
+
+现在，创建 `main.py` 并复制以下代码。它包含了使用本库的所有核心步骤。
+
+```python
+from yai_nexus_configuration import NexusConfig, nexus_config, NexusConfigManager
+
+# 步骤 1: 定义一个与 JSON 结构匹配的配置类
+# @nexus_config 装饰器将类与配置文件关联起来
+@nexus_config(data_id="app_config.json", group="DEFAULT_GROUP")
+class AppConfig(NexusConfig):
+    database_url: str
+    retries: int = 3  # 您可以提供默认值
+    api_key: str
+
+# 步骤 2: 使用工厂方法创建管理器
+# `with` 语句能确保资源被正确管理和释放
+with NexusConfigManager.with_file(base_path="configs") as manager:
+    # 步骤 3: 向管理器注册您的配置类
+    manager.register(AppConfig)
+
+    # 步骤 4: 从管理器中获取类型安全的配置实例
+    config = manager.get_config(AppConfig)
+
+# 步骤 5: 像使用普通对象一样使用您的配置
+print(f"数据库 URL: {config.database_url}")
+print(f"重试次数: {config.retries}")
+print(f"API 密钥: {config.api_key}")
+
+# 运行此脚本，您将看到从文件中加载并经过验证的配置！
+```
+
+**效果**: 这个“黄金路径”示例清晰地展示了本库的核心设计思想，能帮助您快速上手，避免常见的使用陷阱。
+
+---
+
 ## ✨ 主要特性
 
 - 🎯 **简洁优雅的 API** - 采用工厂模式，一行代码创建管理器
@@ -14,63 +79,6 @@
 - 🧩 **可扩展架构** - 基于 Provider 模式，轻松支持新的配置源
 - ✅ **类型安全** - 完整的类型提示支持，基于 Pydantic 数据验证
 - 📦 **零依赖冲突** - 精心设计的依赖管理，避免版本冲突
-
-## 🎬 快速开始
-
-### 安装
-
-```bash
-pip install yai-nexus-configuration[file]
-```
-
-### 使用本地文件
-
-这是最快体验本库功能的方式，无需任何外部服务。
-
-**1. 创建配置文件**
-
-在您的项目根目录创建一个 `configs` 文件夹，并像这样组织您的配置：
-
-```
-configs/
-└── DEFAULT_GROUP/
-    └── app.json
-```
-
-文件 `configs/DEFAULT_GROUP/app.json` 的内容:
-```json
-{
-  "app_name": "My Awesome App",
-  "debug": true,
-  "log_level": "DEBUG"
-}
-```
-
-**2. 编写 Python 代码**
-
-```python
-from yai_nexus_configuration import NexusConfigManager, NexusConfig, nexus_config
-
-# 定义配置模型，它会自动映射到 app.json
-@nexus_config(data_id="app.json") # group 默认为 DEFAULT_GROUP
-class AppConfig(NexusConfig):
-    app_name: str
-    debug: bool
-    log_level: str
-
-# 使用 with 语句创建管理器，它会自动管理资源
-with NexusConfigManager.with_file(base_path="configs") as manager:
-    # 注册配置类
-    manager.register(AppConfig)
-    
-    # 获取类型安全的配置实例
-    app_config = manager.get_config(AppConfig)
-    
-    print(f"应用名称: {app_config.app_name}")
-    print(f"调试模式: {app_config.debug}")
-
-# 当您修改 app.json 文件并保存后，再次获取配置，就会看到更新！
-```
 
 ## 🏗️ 架构设计
 
@@ -309,7 +317,7 @@ pip install yai-nexus-configuration[all]
 
 ```bash
 # 克隆项目
-git clone https://github.com/yai-team/yai-nexus-configuration.git
+git clone https://github.com/yai-nexus/yai-nexus-configuration.git
 cd yai-nexus-configuration
 
 # 安装开发依赖
